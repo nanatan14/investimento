@@ -1,0 +1,110 @@
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts'
+import { brl, pct, num } from '../utils/format'
+
+// Visão geral: patrimônio total, dólar, e gráficos de composição (atual x ideal).
+export default function Dashboard({ computed, usdBrl, updatedAt }) {
+  const { total, byClass } = computed
+  const classesComAtivo = byClass.filter((c) => c.current > 0 || c.targetPct > 0)
+  const pieData = classesComAtivo.filter((c) => c.current > 0)
+
+  // Dados para o gráfico de barras: % atual vs % ideal por classe
+  const barData = classesComAtivo.map((c) => ({
+    name: c.label,
+    Atual: +(c.currentPct * 100).toFixed(1),
+    Ideal: +(c.targetPct * 100).toFixed(1),
+  }))
+
+  return (
+    <>
+      <div className="grid grid-3">
+        <div className="stat">
+          <div className="label">Patrimônio total</div>
+          <div className="value">{brl(total)}</div>
+        </div>
+        <div className="stat">
+          <div className="label">Dólar (USD/BRL)</div>
+          <div className="value sm">{usdBrl ? brl(usdBrl) : '—'}</div>
+        </div>
+        <div className="stat">
+          <div className="label">Preços atualizados</div>
+          <div className="value sm">
+            {updatedAt ? new Date(updatedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Nunca'}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-2" style={{ marginTop: 16 }}>
+        <div className="card">
+          <h2>Composição atual</h2>
+          <p className="sub">Como seu dinheiro está dividido hoje</p>
+          {pieData.length === 0 ? (
+            <div className="empty">Sem ativos ainda.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={pieData} dataKey="current" nameKey="label" cx="50%" cy="50%"
+                  innerRadius={55} outerRadius={95} paddingAngle={2} isAnimationActive={false}>
+                  {pieData.map((c) => <Cell key={c.cls} fill={c.color} />)}
+                </Pie>
+                <Tooltip formatter={(v) => brl(v)} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="card">
+          <h2>Atual x Ideal</h2>
+          <p className="sub">Distância da sua carteira ideal (%)</p>
+          {barData.length === 0 ? (
+            <div className="empty">Defina suas metas para ver.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={barData} margin={{ left: -10 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 11 }} unit="%" />
+                <Tooltip formatter={(v) => v + '%'} />
+                <Legend />
+                <Bar dataKey="Atual" fill="#0d7488" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="Ideal" fill="#e9a23b" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2>Resumo por classe</h2>
+        <p className="sub">Valor, participação atual e meta de cada classe</p>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Classe</th><th>Ativos</th><th>Valor</th><th>% Atual</th><th>% Ideal</th><th>Aportar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {classesComAtivo.map((c) => (
+                <tr key={c.cls}>
+                  <td>
+                    <span className="flex" style={{ gap: 8 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color }} />
+                      {c.label}
+                    </span>
+                  </td>
+                  <td className="muted">{c.count}</td>
+                  <td>{brl(c.current)}</td>
+                  <td>{pct(c.currentPct)}</td>
+                  <td className="muted">{pct(c.targetPct)}</td>
+                  <td className={c.faltaBRL > 0.5 ? 'pos' : 'muted'}>
+                    {c.faltaBRL > 0.5 ? brl(c.faltaBRL) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  )
+}
