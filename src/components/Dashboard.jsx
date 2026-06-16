@@ -20,6 +20,14 @@ export default function Dashboard({ computed, usdBrl, updatedAt }) {
         <div className="hero-label">PATRIMÔNIO INVESTIDO</div>
         <div className="hero-value">{brl(total)}</div>
         <div className="hero-row">
+          {computed.temCusto && (
+            <div>
+              <div className="mini-label">Lucro / Prejuízo</div>
+              <div className="mini-value">
+                {computed.lucroTotal >= 0 ? '▲' : '▼'} {brl(Math.abs(computed.lucroTotal))} ({pct(computed.rentabTotal)})
+              </div>
+            </div>
+          )}
           <div>
             <div className="mini-label">Dólar (USD/BRL)</div>
             <div className="mini-value">{usdBrl ? brl(usdBrl) : '—'}</div>

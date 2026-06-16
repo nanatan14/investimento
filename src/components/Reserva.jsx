@@ -3,11 +3,18 @@ import { brl, usd, pct, parseNum } from '../utils/format'
 
 // Aba RESERVA DE EMERGÊNCIA — fica FORA da carteira de investimentos.
 // Cada reserva tem um valor atual e uma META; mostramos o progresso.
-export default function Reserva({ reserva, usdBrl, onChange }) {
+export default function Reserva({ reserva, usdBrl, lastPrices = {}, onChange }) {
   const [novo, setNovo] = useState(null) // item em criação
 
   const dolar = usdBrl || 0
-  const emBRL = (item) => (item.cur === 'USD' ? (item.value || 0) * dolar : item.value || 0)
+  // #17 — se a reserva tem um ticker (ex: TFLO), o valor vem do preço ao vivo × quantidade.
+  const valorAtual = (item) => {
+    if (item.ticker && isFinite(lastPrices[item.ticker]) && (item.qty || 0) > 0) {
+      return lastPrices[item.ticker] * item.qty
+    }
+    return item.value || 0
+  }
+  const emBRL = (item) => (item.cur === 'USD' ? valorAtual(item) * dolar : valorAtual(item))
   const metaBRL = (item) => (item.cur === 'USD' ? (item.goal || 0) * dolar : item.goal || 0)
 
   const totalAtual = reserva.reduce((s, i) => s + emBRL(i), 0)
@@ -15,7 +22,8 @@ export default function Reserva({ reserva, usdBrl, onChange }) {
   const progressoGeral = totalMeta > 0 ? totalAtual / totalMeta : 0
 
   function atualizar(id, campo, valor) {
-    onChange(reserva.map((i) => (i.id === id ? { ...i, [campo]: campo === 'value' || campo === 'goal' ? parseNum(valor) : valor } : i)))
+    const numerico = campo === 'value' || campo === 'goal' || campo === 'qty'
+    onChange(reserva.map((i) => (i.id === id ? { ...i, [campo]: numerico ? parseNum(valor) : valor } : i)))
   }
   function remover(id) {
     if (confirm('Remover esta reserva?')) onChange(reserva.filter((i) => i.id !== id))
@@ -58,7 +66,8 @@ export default function Reserva({ reserva, usdBrl, onChange }) {
 
         <div className="reserva-grid">
           {reserva.map((item) => {
-            const atual = item.value || 0
+            const auto = Boolean(item.ticker)
+            const atual = valorAtual(item)
             const meta = item.goal || 0
             const p = meta > 0 ? atual / meta : 0
             const fmt = item.cur === 'USD' ? usd : brl
@@ -68,6 +77,7 @@ export default function Reserva({ reserva, usdBrl, onChange }) {
                   <div className="reserva-name">
                     {item.name}
                     <span className="tag" style={{ marginLeft: 8 }}>{item.cur === 'USD' ? 'Dólar' : 'Real'}</span>
+                    {auto && <span className="tag" style={{ marginLeft: 6, background: 'var(--brand-soft)' }}>auto · {item.ticker}</span>}
                   </div>
                   <button className="btn sm danger" onClick={() => remover(item.id)}>×</button>
                 </div>
@@ -82,11 +92,19 @@ export default function Reserva({ reserva, usdBrl, onChange }) {
                 {p < 1 && <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>Falta {fmt(Math.max(0, meta - atual))}</div>}
 
                 <div className="reserva-edit">
-                  <label className="field">
-                    Valor atual ({item.cur})
-                    <input defaultValue={atual} inputMode="decimal"
-                      onBlur={(e) => atualizar(item.id, 'value', e.target.value)} />
-                  </label>
+                  {auto ? (
+                    <label className="field">
+                      Quantidade (cotação automática)
+                      <input defaultValue={item.qty || 0} inputMode="decimal"
+                        onBlur={(e) => atualizar(item.id, 'qty', e.target.value)} />
+                    </label>
+                  ) : (
+                    <label className="field">
+                      Valor atual ({item.cur})
+                      <input defaultValue={atual} inputMode="decimal"
+                        onBlur={(e) => atualizar(item.id, 'value', e.target.value)} />
+                    </label>
+                  )}
                   <label className="field">
                     Meta ({item.cur})
                     <input defaultValue={meta} inputMode="decimal"

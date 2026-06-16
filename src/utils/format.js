@@ -1,11 +1,18 @@
 // Funções para formatar dinheiro, porcentagem e números no padrão brasileiro.
 
+// Modo privacidade: quando ligado, os valores em dinheiro viram "•••••".
+let MASK = false
+export function setMask(on) { MASK = !!on }
+const MASKED = 'R$ ••••'
+
 export function brl(value) {
+  if (MASK) return MASKED
   if (value == null || isNaN(value)) return 'R$ 0,00'
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 export function usd(value) {
+  if (MASK) return 'US$ ••••'
   if (value == null || isNaN(value)) return 'US$ 0,00'
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'USD' })
 }

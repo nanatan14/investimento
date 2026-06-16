@@ -6,18 +6,23 @@ import Holdings from './components/Holdings'
 import Rebalance from './components/Rebalance'
 import Insights from './components/Insights'
 import Reserva from './components/Reserva'
+import Proventos from './components/Proventos'
 import Settings from './components/Settings'
 import AssetModal from './components/AssetModal'
+import AssetDetail from './components/AssetDetail'
 import { loadPortfolio, savePortfolio, emptyPortfolio, seedPortfolio } from './services/portfolioService'
 import { fetchAllPrices } from './services/priceService'
 import { computePortfolio } from './utils/calc'
-import { PRICE_CACHE_MINUTES } from './data/config'
+import { listarAlertas } from './utils/alerts'
+import { setMask } from './utils/format'
+import { PRICE_CACHE_MINUTES, DEFAULT_BRAPI_TOKEN } from './data/config'
 
 const TABS = [
   { id: 'resumo', label: 'Resumo' },
   { id: 'carteira', label: 'Carteira' },
   { id: 'rebalancear', label: 'Rebalancear' },
   { id: 'insights', label: 'Insights' },
+  { id: 'proventos', label: 'Proventos' },
   { id: 'reserva', label: 'Reserva' },
   { id: 'config', label: 'Configurações' },
 ]
@@ -28,12 +33,21 @@ export default function App() {
   const [portfolio, setPortfolio] = useState(null)
   const [loadingPf, setLoadingPf] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
-  const [tab, setTab] = useState('resumo')
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(location.search).get('tab')
+    return TABS.some((x) => x.id === t) ? t : 'resumo'
+  })
   const [modal, setModal] = useState(null) // { asset, isFixed }
   const [refreshing, setRefreshing] = useState(false)
   const [priceErrors, setPriceErrors] = useState([])
   const [loadError, setLoadError] = useState('')
+  const [privacy, setPrivacy] = useState(() => localStorage.getItem('privacy') === '1')
+  const [detail, setDetail] = useState(null) // ativo aberto no detalhe
   const autoRefreshedRef = useRef(false)
+
+  // Modo privacidade: mascara os valores em dinheiro.
+  setMask(privacy)
+  useEffect(() => { localStorage.setItem('privacy', privacy ? '1' : '0') }, [privacy])
 
   // Tema claro/escuro
   useEffect(() => {
@@ -89,7 +103,9 @@ export default function App() {
     setRefreshing(true)
     setPriceErrors([])
     try {
-      const { prices, usdBrl, updatedAt, errors } = await fetchAllPrices(portfolio.assets, portfolio.settings || {})
+      // Inclui tickers de reserva em dólar (ex: TFLO) na busca de preços (#17).
+      const reservaTickers = (portfolio.reserva || []).filter((r) => r.ticker).map((r) => r.ticker)
+      const { prices, usdBrl, updatedAt, errors } = await fetchAllPrices(portfolio.assets, portfolio.settings || {}, reservaTickers)
       setPriceErrors(errors)
       mutate((prev) => ({
         ...prev,
@@ -123,6 +139,7 @@ export default function App() {
     () => (portfolio ? computePortfolio(portfolio, portfolio.lastPrices, portfolio.usdBrl) : null),
     [portfolio]
   )
+  const alertas = useMemo(() => listarAlertas(computed?.variable || []), [computed])
 
   // ---- Handlers de ativos ----
   function salvarAtivo(data, isFixed) {
@@ -165,6 +182,9 @@ export default function App() {
           <button className="btn sm" onClick={atualizarPrecos} disabled={refreshing}>
             {refreshing ? 'Atualizando…' : '↻ Atualizar preços'}
           </button>
+          <button className="btn sm ghost" onClick={() => setPrivacy((p) => !p)} title="Esconder/mostrar valores">
+            {privacy ? '🙈' : '👁️'}
+          </button>
           <button className="btn sm ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
@@ -184,12 +204,22 @@ export default function App() {
 
       <main className="container">
         {loadError && <div className="banner error">⚠️ {loadError}</div>}
+        {alertas.length > 0 && (
+          <div className="banner alert">
+            🔔 {alertas.map((a) => (
+              <span key={a.ticker} style={{ marginRight: 14 }}>
+                <b>{a.ticker}</b> {a.tipo === 'below' ? 'caiu abaixo de' : 'passou de'} {a.cur === 'USD' ? 'US$' : 'R$'} {a.alvo}
+              </span>
+            ))}
+          </div>
+        )}
         {priceErrors.length > 0 && (
           <div className="banner warn">
             {priceErrors.map((e, i) => <div key={i}>• {e}</div>)}
           </div>
         )}
 
+        <div key={tab} className="fade-in">
         {tab === 'resumo' && (
           <Dashboard computed={computed} usdBrl={portfolio.usdBrl} updatedAt={portfolio.priceUpdatedAt} />
         )}
@@ -199,16 +229,21 @@ export default function App() {
             onAdd={() => setModal({ asset: null, isFixed: false })}
             onEdit={(a, isFixed) => setModal({ asset: a, isFixed })}
             onRemove={removerAtivo}
+            onOpen={(a) => setDetail(a)}
           />
         )}
         {tab === 'rebalancear' && (
           <Rebalance computed={computed} onAddAsset={() => setModal({ asset: null, isFixed: false })} />
         )}
         {tab === 'insights' && <Insights computed={computed} />}
+        {tab === 'proventos' && (
+          <Proventos computed={computed} usdBrl={portfolio.usdBrl} />
+        )}
         {tab === 'reserva' && (
           <Reserva
             reserva={portfolio.reserva || []}
             usdBrl={portfolio.usdBrl}
+            lastPrices={portfolio.lastPrices || {}}
             onChange={(r) => mutate((prev) => ({ ...prev, reserva: r }))}
           />
         )}
@@ -221,6 +256,7 @@ export default function App() {
             onLoadSeed={() => { if (confirm('Carregar a carteira da planilha? Isso substitui a atual.')) comecar('seed') }}
           />
         )}
+        </div>
       </main>
 
       {modal && (
@@ -228,6 +264,14 @@ export default function App() {
           asset={modal.asset}
           onSave={salvarAtivo}
           onClose={() => setModal(null)}
+        />
+      )}
+      {detail && (
+        <AssetDetail
+          asset={detail}
+          brapiToken={portfolio.settings?.brapiToken || DEFAULT_BRAPI_TOKEN}
+          onClose={() => setDetail(null)}
+          onEdit={(a) => { setDetail(null); setModal({ asset: a, isFixed: false }) }}
         />
       )}
     </div>

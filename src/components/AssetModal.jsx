@@ -28,8 +28,11 @@ export default function AssetModal({ asset, onSave, onClose }) {
           cur: CLASSES[form.cls].cur,
           qty: parseNum(form.qty),
           price: parseNum(form.price),
+          avgPrice: parseNum(form.avgPrice),
           targetPct: parseNum(form.targetPct) / 100,
-          note: form.note || null,
+          alertAbove: parseNum(form.alertAbove) || null,
+          alertBelow: parseNum(form.alertBelow) || null,
+          note: form.note ? parseNum(form.note) : null,
         }
     onSave(data, isFixed)
   }
@@ -62,13 +65,38 @@ export default function AssetModal({ asset, onSave, onClose }) {
                 <input value={form.qty} onChange={(e) => set('qty', e.target.value)} placeholder="0" inputMode="decimal" />
               </div>
               <div className="field-row">
+                <label className="field">Preço médio de compra ({CLASSES[form.cls].cur})</label>
+                <input value={form.avgPrice ?? ''} onChange={(e) => set('avgPrice', e.target.value)} placeholder="0,00" inputMode="decimal" />
+              </div>
+            </div>
+            <div className="grid grid-2" style={{ gap: 12 }}>
+              <div className="field-row">
                 <label className="field">Preço atual ({CLASSES[form.cls].cur})</label>
-                <input value={form.price} onChange={(e) => set('price', e.target.value)} placeholder="0,00" inputMode="decimal" />
+                <input value={form.price} onChange={(e) => set('price', e.target.value)} placeholder="atualiza sozinho" inputMode="decimal" />
+              </div>
+              <div className="field-row">
+                <label className="field">Setor (opcional)</label>
+                <input value={form.sector} onChange={(e) => set('sector', e.target.value)} placeholder="Financeiro" />
               </div>
             </div>
             <div className="field-row">
-              <label className="field">Setor (opcional)</label>
-              <input value={form.sector} onChange={(e) => set('sector', e.target.value)} placeholder="Financeiro" />
+              <label className="field">⭐ Nota de qualidade (1 a 5, opcional)</label>
+              <select value={form.note ?? ''} onChange={(e) => set('note', e.target.value)}>
+                <option value="">Sem nota</option>
+                {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{'★'.repeat(n)} ({n})</option>)}
+              </select>
+            </div>
+            <div className="field-row">
+              <label className="field">🔔 Alertas de preço (opcional)</label>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <input value={form.alertBelow ?? ''} onChange={(e) => set('alertBelow', e.target.value)}
+                  placeholder={`avisar se cair abaixo de`} inputMode="decimal" />
+                <input value={form.alertAbove ?? ''} onChange={(e) => set('alertAbove', e.target.value)}
+                  placeholder={`avisar se passar de`} inputMode="decimal" />
+              </div>
+              <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+                Valores em {CLASSES[form.cls].cur}. O app destaca o ativo quando o preço cruzar esses limites.
+              </p>
             </div>
           </>
         ) : (

@@ -18,17 +18,39 @@ const CRYPTO_IDS = {
   DOT: 'polkadot', LTC: 'litecoin', AVAX: 'avalanche-2', LINK: 'chainlink',
 }
 
-// Busca cotação atual do dólar (USD -> BRL). Sem cadastro, CORS liberado.
+// Busca uma URL passando por proxies abertos (pra contornar CORS).
+// #21 — fonte redundante: tenta um proxy; se falhar, tenta o outro.
+async function proxyFetch(alvo) {
+  const proxies = [
+    (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ]
+  for (const p of proxies) {
+    try {
+      const r = await fetch(p(alvo))
+      if (r.ok) return r
+    } catch (e) { /* tenta o próximo proxy */ }
+  }
+  return null
+}
+
+// Busca cotação atual do dólar (USD -> BRL). #21 — duas fontes redundantes.
 export async function getUsdBrl() {
   try {
     const r = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
     const data = await r.json()
     const v = parseFloat(data?.USDBRL?.bid)
-    return isFinite(v) && v > 0 ? v : null
+    if (isFinite(v) && v > 0) return v
+  } catch (e) { /* tenta a fonte reserva */ }
+  try {
+    const r = await fetch('https://open.er-api.com/v6/latest/USD')
+    const data = await r.json()
+    const v = data?.rates?.BRL
+    if (isFinite(v) && v > 0) return v
   } catch (e) {
-    console.warn('Falha ao buscar dólar:', e)
-    return null
+    console.warn('Falha ao buscar dólar (2 fontes):', e)
   }
+  return null
 }
 
 // Preços de Ações BR e FIIs via brapi.dev. Aceita vários tickers de uma vez.
@@ -108,8 +130,7 @@ async function getUsQuotesYahoo(tickers) {
   const buscarUm = async (t) => {
     try {
       const alvo = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=1d`
-      const url = `https://corsproxy.io/?url=${encodeURIComponent(alvo)}`
-      const r = await fetch(url)
+      const r = await proxyFetch(alvo)
       const data = await r.json()
       const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice
       if (isFinite(price) && price > 0) out[t] = price
@@ -140,11 +161,15 @@ async function getUsQuotes(tickers, finnhubToken) {
 // { prices: { TICKER: preço }, usdBrl, updatedAt, errors: [] }
 // Preços ficam na MOEDA NATIVA (BRL para BR/cripto, USD para exterior).
 // =========================================================================
-export async function fetchAllPrices(assets, settings = {}) {
+export async function fetchAllPrices(assets, settings = {}, extraUsTickers = []) {
   const errors = []
   const brTickers = assets.filter((a) => a.cls === 'acoes_br' || a.cls === 'fiis').map((a) => a.ticker)
   const cryptoTickers = assets.filter((a) => a.cls === 'cripto').map((a) => a.ticker)
-  const usTickers = assets.filter((a) => a.cls === 'exterior').map((a) => a.ticker)
+  // Inclui também tickers da reserva em dólar (ex: TFLO) na busca dos EUA.
+  const usTickers = [...new Set([
+    ...assets.filter((a) => a.cls === 'exterior').map((a) => a.ticker),
+    ...extraUsTickers,
+  ])]
 
   const brapiToken = settings.brapiToken || DEFAULT_BRAPI_TOKEN
 
@@ -167,20 +192,109 @@ export async function fetchAllPrices(assets, settings = {}) {
   return { prices, usdBrl, updatedAt: new Date().toISOString(), errors }
 }
 
-// Busca o histórico de dividendos de um ativo BR via brapi (módulo dividends).
-export async function getDividends(ticker, token) {
+// Converte o ticker para o formato do Yahoo (Ações BR e FIIs levam ".SA").
+function yahooSymbol(ticker, cls) {
+  if (cls === 'acoes_br' || cls === 'fiis') return `${ticker}.SA`
+  return ticker
+}
+
+// #4 — Dividendos dos últimos 12 meses via Yahoo Finance (funciona para
+// Ações BR, FIIs e ações dos EUA, de graça). Devolve { lista, total12m, dy }.
+export async function getDividends(ticker, cls, precoAtual) {
   try {
-    const url = `https://brapi.dev/api/quote/${ticker}?modules=dividends` + (token ? `&token=${token}` : '')
-    const r = await fetch(url)
+    const sym = yahooSymbol(ticker, cls)
+    const alvo = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=1y&interval=1d&events=div`
+    const r = await proxyFetch(alvo)
     const data = await r.json()
-    const list = data?.results?.[0]?.dividendsData?.cashDividends || []
-    return list.map((d) => ({
-      date: d.paymentDate || d.date,
-      value: d.rate,
-      type: d.label || 'Provento',
-    }))
+    const ev = data?.chart?.result?.[0]?.events?.dividends || {}
+    const lista = Object.values(ev)
+      .map((d) => ({ date: new Date((d.date || 0) * 1000).toISOString().slice(0, 10), value: d.amount }))
+      .filter((d) => isFinite(d.value))
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+    const total12m = lista.reduce((s, d) => s + d.value, 0)
+    const dy = precoAtual > 0 ? total12m / precoAtual : null
+    return { lista, total12m, dy }
   } catch (e) {
     console.warn('Falha dividendos', ticker, e)
+    return { lista: [], total12m: 0, dy: null }
+  }
+}
+
+// #25 — Histórico de preços (últimos ~6 meses) pra desenhar o mini gráfico.
+// Devolve um array de { t (timestamp), c (fechamento) }.
+export async function getPriceHistory(ticker, cls, token) {
+  // Ações dos EUA: Yahoo (via proxy)
+  if (cls === 'exterior') {
+    try {
+      const alvo = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=6mo`
+      const r = await proxyFetch(alvo)
+      const data = await r.json()
+      const res = data?.chart?.result?.[0]
+      const ts = res?.timestamp || []
+      const closes = res?.indicators?.quote?.[0]?.close || []
+      return ts.map((t, i) => ({ t: t * 1000, c: closes[i] })).filter((p) => Number.isFinite(p.c))
+    } catch (e) { return [] }
+  }
+  // Ações BR / FIIs: Yahoo com ".SA" (mais confiável que o plano grátis da brapi)
+  if (cls === 'acoes_br' || cls === 'fiis') {
+    try {
+      const alvo = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}.SA?interval=1d&range=6mo`
+      const r = await proxyFetch(alvo)
+      const data = await r.json()
+      const res = data?.chart?.result?.[0]
+      const ts = res?.timestamp || []
+      const closes = res?.indicators?.quote?.[0]?.close || []
+      return ts.map((t, i) => ({ t: t * 1000, c: closes[i] })).filter((p) => Number.isFinite(p.c))
+    } catch (e) { return [] }
+  }
+  return []
+}
+
+// #11 — Retornos de 12 meses dos principais índices (pra comparar com sua carteira).
+async function variacao12m(simbolo) {
+  try {
+    const alvo = `https://query1.finance.yahoo.com/v8/finance/chart/${simbolo}?interval=1wk&range=1y`
+    const r = await proxyFetch(alvo)
+    const data = await r.json()
+    const closes = (data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []).filter((c) => Number.isFinite(c))
+    if (closes.length < 2) return null
+    return (closes[closes.length - 1] - closes[0]) / closes[0]
+  } catch (e) { return null }
+}
+
+export async function getBenchmarks() {
+  const [ibov, sp500] = await Promise.all([variacao12m('%5EBVSP'), variacao12m('%5EGSPC')])
+
+  // CDI acumulado 12 meses via Banco Central (série 4391, % ao mês).
+  let cdi = null
+  try {
+    const r = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados/ultimos/12?formato=json')
+    const data = await r.json()
+    if (Array.isArray(data) && data.length) {
+      cdi = data.reduce((acc, d) => acc * (1 + parseFloat(d.valor) / 100), 1) - 1
+    }
+  } catch (e) { /* usa fallback abaixo */ }
+  if (cdi == null) cdi = 0.105 // estimativa de reserva se a API falhar
+
+  return { ibov, sp500, cdi }
+}
+
+// #23 — Notícias do ativo via Google Notícias (RSS), através de proxy.
+export async function getNews(ticker, cls) {
+  try {
+    const termo = cls === 'cripto' ? `${ticker} cripto` : `${ticker} ações`
+    const rss = `https://news.google.com/rss/search?q=${encodeURIComponent(termo)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`
+    const r = await proxyFetch(rss)
+    const xml = await r.text()
+    const doc = new DOMParser().parseFromString(xml, 'text/xml')
+    return [...doc.querySelectorAll('item')].slice(0, 6).map((it) => ({
+      title: it.querySelector('title')?.textContent || '',
+      link: it.querySelector('link')?.textContent || '',
+      date: it.querySelector('pubDate')?.textContent || '',
+      source: it.querySelector('source')?.textContent || '',
+    }))
+  } catch (e) {
+    console.warn('Falha notícias', ticker, e)
     return []
   }
 }

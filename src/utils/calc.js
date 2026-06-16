@@ -25,9 +25,19 @@ export function computePortfolio(portfolio, lastPrices = {}, usdBrl = null) {
   // 1) Ativos variáveis (ações, fiis, exterior, cripto)
   for (const a of portfolio.assets || []) {
     const price = nativePrice(a, lastPrices)
+    const cur = CLASSES[a.cls]?.cur || 'BRL'
     const valueNative = (a.qty || 0) * price
-    const valueBRL = toBRL(valueNative, CLASSES[a.cls]?.cur || 'BRL', usd)
-    variable.push({ ...a, price, valueNative, valueBRL })
+    const valueBRL = toBRL(valueNative, cur, usd)
+
+    // Preço médio de compra: se não informado, assume o preço atual (lucro = 0).
+    const avgPrice = isFinite(a.avgPrice) && a.avgPrice > 0 ? a.avgPrice : price
+    const temCusto = isFinite(a.avgPrice) && a.avgPrice > 0 && (a.qty || 0) > 0
+    const custoNative = avgPrice * (a.qty || 0)
+    const lucroNative = valueNative - custoNative
+    const lucroBRL = toBRL(lucroNative, cur, usd)
+    const rentab = custoNative > 0 ? lucroNative / custoNative : 0
+
+    variable.push({ ...a, price, cur, avgPrice, valueNative, valueBRL, temCusto, custoBRL: toBRL(custoNative, cur, usd), lucroBRL, rentab })
   }
 
   // 2) Ativos de valor fixo (renda fixa, reserva) — já estão em BRL
@@ -72,5 +82,11 @@ export function computePortfolio(portfolio, lastPrices = {}, usdBrl = null) {
     }
   })
 
-  return { total, usdBrl: usd, variable: variableComputed, fixed, byClass }
+  // 5) Totais de lucro/prejuízo (só dos ativos com preço médio informado)
+  const comCusto = variableComputed.filter((a) => a.temCusto)
+  const lucroTotal = comCusto.reduce((s, a) => s + a.lucroBRL, 0)
+  const custoTotal = comCusto.reduce((s, a) => s + a.custoBRL, 0)
+  const rentabTotal = custoTotal > 0 ? lucroTotal / custoTotal : 0
+
+  return { total, usdBrl: usd, variable: variableComputed, fixed, byClass, lucroTotal, custoTotal, rentabTotal, temCusto: comCusto.length > 0 }
 }

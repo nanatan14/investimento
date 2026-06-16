@@ -8,10 +8,16 @@ cada ativo para chegar na sua carteira ideal — igual à sua planilha, só que 
 - 💹 Preços automáticos: brapi.dev (Ações BR/FIIs, token já incluído), CoinGecko (cripto),
   AwesomeAPI (dólar) e Yahoo Finance (Ações dos EUA, sem precisar de chave)
 - 🔄 Atualiza os preços sozinho ao abrir (com cache de 15 min pra não pesar)
-- ⚖️ Simulador de aporte / rebalanceamento
+- 📈 Preço médio e rentabilidade (lucro/prejuízo) por ativo
+- 💰 Dividendos automáticos (Ações BR, FIIs e Exterior) + renda passiva estimada
+- ⚖️ Simulador de aporte / rebalanceamento (+ adicionar ativo novo)
+- 💡 Insights com score de saúde da carteira e distribuição por setor
+- 🔔 Alertas de preço por ativo
+- 🔍 Tela de detalhe do ativo (gráfico de 6 meses + notícias)
+- 🛟 Aba Reserva de emergência (real e dólar) com meta — fora da carteira
+- 🙈 Modo privacidade (esconde os valores)
 - 📊 Gráficos de composição (atual x ideal)
-- 💰 Controle de dividendos e proventos
-- 📱 Instalável no celular (PWA) e funciona offline
+- 📱 Instalável no celular (PWA), atalhos rápidos e modo offline
 - 🌗 Tema claro/escuro
 
 ---

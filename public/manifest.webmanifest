@@ -13,5 +13,10 @@
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Resumo da carteira", "short_name": "Resumo", "url": "/?tab=resumo" },
+    { "name": "Onde aportar", "short_name": "Rebalancear", "url": "/?tab=rebalancear" },
+    { "name": "Reserva de emergência", "short_name": "Reserva", "url": "/?tab=reserva" }
   ]
 }

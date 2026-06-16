@@ -613,6 +613,8 @@ export const SEED_PORTFOLIO = {
       "id": "res_dolar_tflo",
       "name": "Reserva em Dólar (ETF TFLO)",
       "cur": "USD",
+      "ticker": "TFLO",
+      "qty": 9.64543,
       "value": 96.3,
       "goal": 1186.0
     }
