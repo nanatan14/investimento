@@ -16,19 +16,23 @@ export default function Dashboard({ computed, usdBrl, updatedAt }) {
 
   return (
     <>
-      <div className="grid grid-3">
-        <div className="stat">
-          <div className="label">Patrimônio total</div>
-          <div className="value">{brl(total)}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Dólar (USD/BRL)</div>
-          <div className="value sm">{usdBrl ? brl(usdBrl) : '—'}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Preços atualizados</div>
-          <div className="value sm">
-            {updatedAt ? new Date(updatedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Nunca'}
+      <div className="card hero-card">
+        <div className="hero-label">PATRIMÔNIO INVESTIDO</div>
+        <div className="hero-value">{brl(total)}</div>
+        <div className="hero-row">
+          <div>
+            <div className="mini-label">Dólar (USD/BRL)</div>
+            <div className="mini-value">{usdBrl ? brl(usdBrl) : '—'}</div>
+          </div>
+          <div>
+            <div className="mini-label">Ativos</div>
+            <div className="mini-value">{computed.variable.filter((a) => a.valueBRL > 0).length}</div>
+          </div>
+          <div>
+            <div className="mini-label">Atualizado em</div>
+            <div className="mini-value">
+              {updatedAt ? new Date(updatedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Nunca'}
+            </div>
           </div>
         </div>
       </div>

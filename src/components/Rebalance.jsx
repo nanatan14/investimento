@@ -4,7 +4,7 @@ import { brl, num, parseNum } from '../utils/format'
 
 // Mostra quanto aportar em cada ativo para chegar na carteira ideal.
 // Você digita quanto tem pra investir e ele distribui de forma inteligente.
-export default function Rebalance({ computed }) {
+export default function Rebalance({ computed, onAddAsset }) {
   // Ativos que estão abaixo da meta (precisam de aporte)
   const faltantes = useMemo(
     () =>
@@ -39,12 +39,21 @@ export default function Rebalance({ computed }) {
   return (
     <>
       <div className="card">
-        <h2>Simulador de aporte</h2>
-        <p className="sub">
-          Digite quanto você tem pra investir agora. O app sugere onde colocar pra
-          aproximar sua carteira da ideal — começando pelos ativos mais atrasados.
-        </p>
-        <div className="flex wrap" style={{ gap: 12 }}>
+        <div className="card-head">
+          <div>
+            <h2>Simulador de aporte</h2>
+            <p className="sub" style={{ marginBottom: 0 }}>
+              Digite quanto você tem pra investir agora. O app sugere onde colocar pra
+              aproximar sua carteira da ideal — começando pelos ativos mais atrasados.
+            </p>
+          </div>
+          {onAddAsset && (
+            <button className="btn" onClick={onAddAsset} title="Inclua um ativo que ainda não está na carteira">
+              + Novo ativo
+            </button>
+          )}
+        </div>
+        <div className="flex wrap" style={{ gap: 12, marginTop: 14 }}>
           <div style={{ maxWidth: 220 }}>
             <label className="field">Valor do aporte (R$)</label>
             <input value={aporteTxt} onChange={(e) => setAporteTxt(e.target.value)}
@@ -55,6 +64,10 @@ export default function Rebalance({ computed }) {
             <div className="value sm">{brl(totalFalta)}</div>
           </div>
         </div>
+        <p className="muted" style={{ fontSize: 13, marginTop: 12, marginBottom: 0 }}>
+          💡 Quer aportar num ativo novo? Clique em <b>+ Novo ativo</b>, defina a meta dele, e ele já
+          entra aqui na sugestão de aporte.
+        </p>
       </div>
 
       <div className="card">

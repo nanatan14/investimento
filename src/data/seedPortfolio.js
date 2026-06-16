@@ -599,14 +599,22 @@ export const SEED_PORTFOLIO = {
       "sector": "Renda Fixa",
       "value": 916.07,
       "targetPct": 0.03333333333333333
+    }
+  ],
+  "reserva": [
+    {
+      "id": "res_emergencia",
+      "name": "Reserva de Emergência (Cofrinho Itaú)",
+      "cur": "BRL",
+      "value": 6000.0,
+      "goal": 60000.0
     },
     {
-      "id": "res_Cofrinho ITAU",
-      "cls": "reserva",
-      "ticker": "Cofrinho ITAU",
-      "sector": "Reserva",
-      "value": 6000.0,
-      "targetPct": 0
+      "id": "res_dolar_tflo",
+      "name": "Reserva em Dólar (ETF TFLO)",
+      "cur": "USD",
+      "value": 96.3,
+      "goal": 1186.0
     }
   ],
   "classTargets": {
@@ -614,7 +622,6 @@ export const SEED_PORTFOLIO = {
     "fiis": 0.2,
     "exterior": 0.65,
     "cripto": 0.03,
-    "renda_fixa": 0.1,
-    "reserva": 0
+    "renda_fixa": 0.1
   }
 };

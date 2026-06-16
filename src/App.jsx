@@ -4,7 +4,8 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import Holdings from './components/Holdings'
 import Rebalance from './components/Rebalance'
-import Dividends from './components/Dividends'
+import Insights from './components/Insights'
+import Reserva from './components/Reserva'
 import Settings from './components/Settings'
 import AssetModal from './components/AssetModal'
 import { loadPortfolio, savePortfolio, emptyPortfolio, seedPortfolio } from './services/portfolioService'
@@ -16,7 +17,8 @@ const TABS = [
   { id: 'resumo', label: 'Resumo' },
   { id: 'carteira', label: 'Carteira' },
   { id: 'rebalancear', label: 'Rebalancear' },
-  { id: 'dividendos', label: 'Dividendos' },
+  { id: 'insights', label: 'Insights' },
+  { id: 'reserva', label: 'Reserva' },
   { id: 'config', label: 'Configurações' },
 ]
 
@@ -199,12 +201,15 @@ export default function App() {
             onRemove={removerAtivo}
           />
         )}
-        {tab === 'rebalancear' && <Rebalance computed={computed} />}
-        {tab === 'dividendos' && (
-          <Dividends
-            proventos={portfolio.proventos || []}
-            onAdd={(p) => mutate((prev) => ({ ...prev, proventos: [...(prev.proventos || []), p] }))}
-            onRemove={(id) => mutate((prev) => ({ ...prev, proventos: (prev.proventos || []).filter((x) => x.id !== id) }))}
+        {tab === 'rebalancear' && (
+          <Rebalance computed={computed} onAddAsset={() => setModal({ asset: null, isFixed: false })} />
+        )}
+        {tab === 'insights' && <Insights computed={computed} />}
+        {tab === 'reserva' && (
+          <Reserva
+            reserva={portfolio.reserva || []}
+            usdBrl={portfolio.usdBrl}
+            onChange={(r) => mutate((prev) => ({ ...prev, reserva: r }))}
           />
         )}
         {tab === 'config' && (
