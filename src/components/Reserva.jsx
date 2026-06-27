@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { brl, usd, pct, parseNum } from '../utils/format'
+import { RingGauge } from './ChartBits'
 
 // Aba RESERVA DE EMERGÊNCIA — fica FORA da carteira de investimentos.
 // Cada reserva tem um valor atual e uma META; mostramos o progresso.
@@ -38,14 +39,14 @@ export default function Reserva({ reserva, usdBrl, lastPrices = {}, onChange }) 
 
   return (
     <>
-      <div className="card hero-card">
-        <div className="hero-label">Reserva de emergência (fora da carteira)</div>
-        <div className="hero-value">{brl(totalAtual)}</div>
-        <div className="hero-sub">
-          Meta total: {brl(totalMeta)} · {pct(progressoGeral)} alcançado
-        </div>
-        <div className="bar big" style={{ marginTop: 14 }}>
-          <span style={{ width: Math.min(100, progressoGeral * 100) + '%', background: cor(progressoGeral) }} />
+      <div className="card reserva-hero">
+        <RingGauge value={progressoGeral} size={150}
+          valueText={pct(progressoGeral, 0)} sub="da meta" />
+        <div>
+          <div className="hero-label" style={{ color: 'var(--text-soft)' }}>RESERVA DE EMERGÊNCIA (fora da carteira)</div>
+          <div className="ring-value" style={{ fontSize: 30, margin: '4px 0' }}>{brl(totalAtual)}</div>
+          <div className="muted">Meta total: <b style={{ color: 'var(--text)' }}>{brl(totalMeta)}</b></div>
+          <div className="muted" style={{ marginTop: 2 }}>Falta {brl(Math.max(0, totalMeta - totalAtual))}</div>
         </div>
       </div>
 

@@ -7,9 +7,12 @@ import Rebalance from './components/Rebalance'
 import Insights from './components/Insights'
 import Reserva from './components/Reserva'
 import Proventos from './components/Proventos'
+import Watchlist from './components/Watchlist'
 import Settings from './components/Settings'
 import AssetModal from './components/AssetModal'
 import AssetDetail from './components/AssetDetail'
+import Skeleton from './components/Skeleton'
+import MobileNav from './components/MobileNav'
 import { loadPortfolio, savePortfolio, emptyPortfolio, seedPortfolio } from './services/portfolioService'
 import { fetchAllPrices } from './services/priceService'
 import { computePortfolio } from './utils/calc'
@@ -24,6 +27,7 @@ const TABS = [
   { id: 'insights', label: 'Insights' },
   { id: 'proventos', label: 'Proventos' },
   { id: 'reserva', label: 'Reserva' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'config', label: 'Configurações' },
 ]
 
@@ -105,11 +109,14 @@ export default function App() {
     try {
       // Inclui tickers de reserva em dólar (ex: TFLO) na busca de preços (#17).
       const reservaTickers = (portfolio.reserva || []).filter((r) => r.ticker).map((r) => r.ticker)
-      const { prices, usdBrl, updatedAt, errors } = await fetchAllPrices(portfolio.assets, portfolio.settings || {}, reservaTickers)
+      // Também busca os preços dos ativos da watchlist (#40).
+      const paraBuscar = [...portfolio.assets, ...(portfolio.watchlist || [])]
+      const { prices, changes, usdBrl, updatedAt, errors } = await fetchAllPrices(paraBuscar, portfolio.settings || {}, reservaTickers)
       setPriceErrors(errors)
       mutate((prev) => ({
         ...prev,
         lastPrices: { ...prev.lastPrices, ...prices },
+        lastChanges: { ...prev.lastChanges, ...changes },
         usdBrl: usdBrl || prev.usdBrl,
         priceUpdatedAt: updatedAt,
         // Atualiza também o campo price salvo de cada ativo (fallback futuro)
@@ -161,7 +168,7 @@ export default function App() {
   // ---- Telas de carregamento / login ----
   if (loading) return <CenterMsg>Carregando…</CenterMsg>
   if (!user) return <Login />
-  if (loadingPf) return <CenterMsg>Carregando sua carteira…</CenterMsg>
+  if (loadingPf) return <Skeleton />
   if (needsOnboarding) return <Onboarding onChoose={comecar} user={user} onLogout={logout} loadError={loadError} />
   if (!portfolio || !computed) return <CenterMsg>Carregando…</CenterMsg>
 
@@ -179,21 +186,23 @@ export default function App() {
             InvestFolio
           </div>
           <div className="spacer" />
-          <button className="btn sm" onClick={atualizarPrecos} disabled={refreshing}>
-            {refreshing ? 'Atualizando…' : '↻ Atualizar preços'}
+          <button className="btn sm refresh-btn" onClick={atualizarPrecos} disabled={refreshing}>
+            <span>↻</span><span className="btn-text">{refreshing ? ' Atualizando…' : ' Atualizar preços'}</span>
           </button>
-          <button className="btn sm ghost" onClick={() => setPrivacy((p) => !p)} title="Esconder/mostrar valores">
-            {privacy ? '🙈' : '👁️'}
-          </button>
-          <button className="btn sm ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
-          <div className="userchip">
-            {user?.photoURL && <img src={user.photoURL} alt="" />}
-            <button className="btn sm ghost" onClick={logout}>Sair</button>
+          <div className="topbar-actions desktop-only">
+            <button className="btn sm ghost" onClick={() => setPrivacy((p) => !p)} title="Esconder/mostrar valores">
+              {privacy ? '🙈' : '👁️'}
+            </button>
+            <button className="btn sm ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <div className="userchip">
+              {user?.photoURL && <img src={user.photoURL} alt="" />}
+              <button className="btn sm ghost" onClick={logout}>Sair</button>
+            </div>
           </div>
         </div>
-        <div className="tabs container">
+        <div className="tabs container desktop-only">
           {TABS.map((t) => (
             <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
               {t.label}
@@ -235,9 +244,18 @@ export default function App() {
         {tab === 'rebalancear' && (
           <Rebalance computed={computed} onAddAsset={() => setModal({ asset: null, isFixed: false })} />
         )}
-        {tab === 'insights' && <Insights computed={computed} />}
+        {tab === 'insights' && <Insights computed={computed} onOpen={(a) => setDetail(a)} />}
         {tab === 'proventos' && (
           <Proventos computed={computed} usdBrl={portfolio.usdBrl} />
+        )}
+        {tab === 'watchlist' && (
+          <Watchlist
+            watchlist={portfolio.watchlist || []}
+            lastPrices={portfolio.lastPrices || {}}
+            lastChanges={portfolio.lastChanges || {}}
+            onChange={(w) => mutate((prev) => ({ ...prev, watchlist: w }))}
+            onAddToPortfolio={(w) => setModal({ asset: { cls: w.cls, ticker: w.ticker, qty: '', price: '', avgPrice: '', targetPct: '', sector: '' }, isFixed: false })}
+          />
         )}
         {tab === 'reserva' && (
           <Reserva
@@ -274,6 +292,14 @@ export default function App() {
           onEdit={(a) => { setDetail(null); setModal({ asset: a, isFixed: false }) }}
         />
       )}
+
+      <MobileNav
+        tab={tab} onTab={setTab}
+        refreshing={refreshing} onRefresh={atualizarPrecos}
+        privacy={privacy} onTogglePrivacy={() => setPrivacy((p) => !p)}
+        theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onLogout={logout}
+      />
     </div>
   )
 }

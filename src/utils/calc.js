@@ -20,6 +20,7 @@ function toBRL(value, cur, usdBrl) {
 // Calcula tudo de uma vez a partir da carteira + preços + dólar.
 export function computePortfolio(portfolio, lastPrices = {}, usdBrl = null) {
   const usd = usdBrl || portfolio.usdBrl || 0
+  const changes = portfolio.lastChanges || {}
   const variable = []
 
   // 1) Ativos variáveis (ações, fiis, exterior, cripto)
@@ -37,7 +38,8 @@ export function computePortfolio(portfolio, lastPrices = {}, usdBrl = null) {
     const lucroBRL = toBRL(lucroNative, cur, usd)
     const rentab = custoNative > 0 ? lucroNative / custoNative : 0
 
-    variable.push({ ...a, price, cur, avgPrice, valueNative, valueBRL, temCusto, custoBRL: toBRL(custoNative, cur, usd), lucroBRL, rentab })
+    const change = isFinite(changes[a.ticker]) ? changes[a.ticker] : null
+    variable.push({ ...a, price, cur, avgPrice, valueNative, valueBRL, temCusto, custoBRL: toBRL(custoNative, cur, usd), lucroBRL, rentab, change })
   }
 
   // 2) Ativos de valor fixo (renda fixa, reserva) — já estão em BRL

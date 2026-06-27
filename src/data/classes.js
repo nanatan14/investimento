@@ -17,3 +17,15 @@ export function classLabel(cls) {
 export function classColor(cls) {
   return CLASSES[cls]?.color || '#888'
 }
+
+// #25 — Bandeira do país do ativo. Exterior assume EUA (a maioria);
+// dá pra sobrescrever salvando "country" no ativo (ex: 'GB', 'CA').
+const FLAGS = { BR: '🇧🇷', US: '🇺🇸', GB: '🇬🇧', CA: '🇨🇦', DE: '🇩🇪', JP: '🇯🇵', CN: '🇨🇳' }
+export function assetFlag(asset) {
+  if (!asset) return ''
+  if (asset.country && FLAGS[asset.country]) return FLAGS[asset.country]
+  if (asset.cls === 'acoes_br' || asset.cls === 'fiis') return '🇧🇷'
+  if (asset.cls === 'exterior') return '🇺🇸'
+  if (asset.cls === 'cripto') return '🌐'
+  return ''
+}

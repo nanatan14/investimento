@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts'
 import { brl, pct, num } from '../utils/format'
+import { PillTooltip } from './ChartBits'
 
 // Visão geral: patrimônio total, dólar, e gráficos de composição (atual x ideal).
 export default function Dashboard({ computed, usdBrl, updatedAt }) {
@@ -55,10 +56,10 @@ export default function Dashboard({ computed, usdBrl, updatedAt }) {
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie data={pieData} dataKey="current" nameKey="label" cx="50%" cy="50%"
-                  innerRadius={55} outerRadius={95} paddingAngle={2} isAnimationActive={false}>
-                  {pieData.map((c) => <Cell key={c.cls} fill={c.color} />)}
+                  innerRadius={58} outerRadius={95} paddingAngle={3} cornerRadius={6} isAnimationActive={false}>
+                  {pieData.map((c) => <Cell key={c.cls} fill={c.color} stroke="transparent" />)}
                 </Pie>
-                <Tooltip formatter={(v) => brl(v)} />
+                <Tooltip content={<PillTooltip format={(v) => brl(v)} />} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -73,12 +74,18 @@ export default function Dashboard({ computed, usdBrl, updatedAt }) {
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={barData} margin={{ left: -10 }}>
+                <defs>
+                  <linearGradient id="barAtual" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#4f6bff" />
+                    <stop offset="100%" stopColor="#16b8ce" />
+                  </linearGradient>
+                </defs>
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v) => v + '%'} />
+                <Tooltip cursor={{ fill: 'rgba(127,127,127,0.08)' }} content={<PillTooltip format={(v) => v + '%'} />} />
                 <Legend />
-                <Bar dataKey="Atual" fill="#0d7488" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                <Bar dataKey="Ideal" fill="#e9a23b" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="Atual" fill="url(#barAtual)" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="Ideal" fill="#cbb3f0" radius={[6, 6, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           )}

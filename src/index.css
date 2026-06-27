@@ -52,6 +52,7 @@ button { font-family: inherit; cursor: pointer; }
 .logo .dot { width: 28px; height: 28px; border-radius: 8px; background: var(--brand);
   display: grid; place-items: center; color: #fff; }
 .spacer { flex: 1; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
 .userchip { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-soft); }
 .userchip img { width: 30px; height: 30px; border-radius: 50%; }
 
@@ -287,3 +288,206 @@ label.field { display: block; font-size: 13px; font-weight: 600; color: var(--te
 /* Treemap (#22) */
 .tm-cell rect { transition: opacity .15s; }
 .tm-cell:hover rect { opacity: 0.82; }
+
+/* Cabeçalhos ordenáveis na Carteira */
+.th-sort { cursor: pointer; user-select: none; white-space: nowrap; transition: color .15s; }
+.th-sort:hover { color: var(--brand); }
+.th-arrow { font-size: 10px; opacity: 0.7; }
+
+/* =================== Lote v6: heatmap, bandeira, hover-card, skeleton, watchlist =================== */
+
+/* Heatmap do dia (#23) */
+.heatmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
+.heat-tile { border: 1px solid var(--border); border-radius: 8px; padding: 9px 6px; display: flex; flex-direction: column;
+  align-items: center; gap: 2px; cursor: pointer; transition: transform .1s; color: var(--text); }
+.heat-tile:hover { transform: scale(1.05); }
+.heat-ticker { font-weight: 800; font-size: 13px; }
+.heat-var { font-size: 12px; font-weight: 700; }
+
+/* Mini-resumo ao passar o mouse (#29) */
+.has-tip { position: relative; }
+.tip-card { position: absolute; left: 10px; top: 100%; z-index: 30; min-width: 220px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px;
+  opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s; pointer-events: none; }
+.has-tip:hover .tip-card { opacity: 1; visibility: visible; transform: none; }
+.tip-title { font-weight: 800; margin-bottom: 8px; }
+.tip-row { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; padding: 3px 0; }
+.tip-row span:first-child { color: var(--text-soft); }
+
+/* Skeleton de carregamento (#32) */
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.sk { display: inline-block; border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
+  background-size: 800px 100%; animation: shimmer 1.4s infinite linear; }
+.sk-pill { width: 130px; height: 30px; border-radius: 10px; }
+.sk-tab { height: 16px; margin: 18px 8px; border-radius: 6px; }
+.sk-hero { display: block; width: 100%; height: 120px; border-radius: var(--radius); margin-top: 6px; }
+.sk-line { height: 16px; margin-bottom: 16px; }
+.sk-block { display: block; width: 100%; height: 210px; border-radius: 10px; }
+.sk-row { height: 44px; border-radius: 8px; margin-top: 10px; width: 100%; }
+
+/* ====================== EXPERIÊNCIA MOBILE (app nativo) ====================== */
+.bottom-nav { display: none; }
+.refresh-btn .btn-text { display: inline; }
+
+@media (max-width: 720px) {
+  /* Some o que é só de desktop, mostra a navegação inferior */
+  .desktop-only { display: none !important; }
+  .topbar-inner { height: 54px; }
+  .logo { font-size: 16px; }
+  .refresh-btn .btn-text { display: none; }
+  .refresh-btn { padding: 8px 12px; font-size: 16px; }
+  main.container { padding: 16px 0 96px; }
+  .container { padding: 0 12px; }
+
+  /* Barra de navegação inferior */
+  .bottom-nav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 18px rgba(16, 40, 50, 0.08);
+  }
+  .bn-item { flex: 1; background: none; border: none; padding: 9px 0 7px; display: flex;
+    flex-direction: column; align-items: center; gap: 3px; color: var(--text-soft); transition: color .15s; }
+  .bn-item.active { color: var(--brand); }
+  .bn-item.active .bn-icon { transform: translateY(-1px) scale(1.1); }
+  .bn-icon { font-size: 20px; transition: transform .15s; }
+  .bn-label { font-size: 11px; font-weight: 700; }
+
+  /* Folha "Mais" deslizando de baixo */
+  .sheet-overlay { position: fixed; inset: 0; background: rgba(8, 18, 22, 0.5); z-index: 60; display: flex; align-items: flex-end; }
+  .sheet { background: var(--surface); width: 100%; border-radius: 20px 20px 0 0;
+    padding: 8px 16px calc(22px + env(safe-area-inset-bottom)); animation: sheetUp .26s ease; }
+  .sheet-handle { width: 42px; height: 4px; border-radius: 3px; background: var(--border); margin: 6px auto 16px; }
+  .sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sheet-item { display: flex; align-items: center; gap: 10px; padding: 15px 14px; border: 1px solid var(--border);
+    border-radius: 14px; background: var(--surface-2); font-weight: 600; color: var(--text); font-size: 14px; }
+  .sheet-item.active { border-color: var(--brand); color: var(--brand); }
+  .sheet-icon { font-size: 18px; }
+  .sheet-sep { height: 1px; background: var(--border); margin: 14px 0; }
+
+  /* Modais viram "bottom sheet" */
+  .overlay { align-items: flex-end; padding: 0; }
+  .modal, .modal-lg { max-width: 100%; border-radius: 20px 20px 0 0; max-height: 92vh; overflow-y: auto; animation: sheetUp .26s ease; }
+
+  /* Tabelas viram CARDS no celular */
+  .cards-mobile table, .cards-mobile tbody { display: block; }
+  .cards-mobile thead { display: none; }
+  .cards-mobile tr { display: block; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; box-shadow: var(--shadow); }
+  .cards-mobile td { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    text-align: right; padding: 6px 0; border: none; white-space: normal; }
+  .cards-mobile td::before { content: attr(data-label); color: var(--text-soft); font-weight: 700;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+  .cards-mobile .cell-asset { display: block; text-align: left; border-bottom: 1px solid var(--border);
+    padding-bottom: 9px; margin-bottom: 4px; }
+  .cards-mobile .cell-asset::before, .cards-mobile .cell-actions::before { content: none; }
+  .cards-mobile .cell-asset .ticker { font-size: 16px; }
+  .cards-mobile .cell-actions { justify-content: flex-end; padding-top: 10px; }
+  .cards-mobile .tip-card { display: none !important; }
+  .cards-mobile .spark-mini { width: 110px; }
+
+  /* Hero e cabeçalhos um pouco mais compactos */
+  .hero-card .hero-value { font-size: 30px; }
+  .card { padding: 16px 14px; }
+  .card h2 { font-size: 15px; }
+
+  /* Heatmap com quadrinhos um pouco menores */
+  .heatmap { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+}
+
+/* Em telas bem pequenas, 1 coluna na folha */
+@media (max-width: 380px) {
+  .sheet-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+   ✨ TEMA PREMIUM v8 — gradientes vibrantes, vidro (glassmorphism), gauges
+   ============================================================================ */
+:root {
+  --grad: linear-gradient(135deg, #16b8ce 0%, #4f6bff 52%, #8b5cf6 100%);
+  --grad-soft: linear-gradient(135deg, #16b8ce22, #8b5cf622);
+  --accent: #5b7cff;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.9);
+}
+[data-theme='dark'] {
+  --accent: #6f8dff;
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-border: rgba(255, 255, 255, 0.09);
+}
+
+/* Fundo gradiente fixo cobrindo a tela toda */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(1100px 640px at 12% -8%, rgba(79, 107, 255, 0.18), transparent 60%),
+    radial-gradient(900px 560px at 100% 0%, rgba(22, 184, 206, 0.16), transparent 55%),
+    linear-gradient(170deg, #eef1ff 0%, #f5f7fb 45%, #eafaf6 100%);
+}
+[data-theme='dark'] body::before {
+  background:
+    radial-gradient(1100px 640px at 12% -8%, rgba(79, 107, 255, 0.22), transparent 60%),
+    radial-gradient(900px 560px at 100% 0%, rgba(22, 184, 206, 0.16), transparent 55%),
+    linear-gradient(170deg, #0a0f24 0%, #0c1230 50%, #0e1738 100%);
+}
+body { background: transparent; }
+
+/* Cards de vidro */
+.card, .stat, .insight-card, .detail-stat, .reserva-item {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+}
+.stat::before { background: var(--grad); }
+
+/* Topo e navegação translúcidos */
+.topbar { background: color-mix(in srgb, var(--surface) 70%, transparent); backdrop-filter: blur(14px) saturate(1.3); }
+.bottom-nav { background: color-mix(in srgb, var(--surface) 82%, transparent) !important; backdrop-filter: blur(16px) saturate(1.4); }
+
+/* Hero com o gradiente da marca + brilho */
+.hero-card { background: var(--grad); position: relative; overflow: hidden; border: none; }
+.hero-card::after {
+  content: ''; position: absolute; right: -40px; top: -60px; width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(255,255,255,0.35), transparent 70%); pointer-events: none;
+}
+
+/* Botões e pílulas com gradiente */
+.btn.primary { background: var(--grad); border: none; box-shadow: 0 6px 18px rgba(79, 107, 255, 0.35); }
+.btn.primary:hover { filter: brightness(1.06); background: var(--grad); }
+.tab.active { color: var(--accent); border-bottom-color: transparent; }
+.tab.active::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 0; height: 3px;
+  border-radius: 3px 3px 0 0; background: var(--grad); }
+.logo .dot { background: var(--grad); }
+.big-dot, .login-card .big-dot { background: var(--grad) !important; }
+
+/* Navegação inferior: item ativo vira pílula gradiente (estilo "My Wallet") */
+@media (max-width: 720px) {
+  .bn-item.active { color: #fff; }
+  .bn-item.active .bn-icon {
+    background: var(--grad); border-radius: 14px; padding: 6px 12px;
+    box-shadow: 0 6px 16px rgba(79, 107, 255, 0.4);
+  }
+  [data-theme='light'] .bn-item.active { color: var(--accent); }
+}
+
+/* Tags e selos com a cara nova */
+.tag { background: var(--grad-soft); color: var(--accent); }
+.health-tag { background: var(--grad) !important; }
+
+/* Realces de número grandes mais vivos */
+.stat .value, .insight-valor { letter-spacing: -0.6px; }
+
+/* Tooltip "pílula" dos gráficos (usado via componente) */
+.pill-tip { background: var(--grad); color: #fff; padding: 7px 12px; border-radius: 12px;
+  font-weight: 800; font-size: 13px; box-shadow: 0 8px 20px rgba(79, 107, 255, 0.4); text-align: center; }
+.pill-tip small { display: block; font-weight: 600; opacity: 0.85; font-size: 11px; }
+
+/* Anel de progresso "clay" (gauge) */
+.ring-box { position: relative; display: inline-block; }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-value { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.ring-sub { font-size: 12px; color: var(--text-soft); margin-top: 2px; }
+.reserva-hero { display: flex; align-items: center; gap: 24px; }
+@media (max-width: 560px) { .reserva-hero { flex-direction: column; text-align: center; gap: 14px; } }

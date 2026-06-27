@@ -53,10 +53,11 @@ export async function getUsdBrl() {
   return null
 }
 
-// Preços de Ações BR e FIIs via brapi.dev. Aceita vários tickers de uma vez.
+// Preços de Ações BR e FIIs via brapi.dev. Devolve { prices, changes }
+// onde changes é a variação do dia em fração (ex: 0.012 = +1,2%).
 async function getBrapiQuotes(tickers, token) {
-  if (!tickers.length) return {}
-  const out = {}
+  if (!tickers.length) return { prices: {}, changes: {} }
+  const prices = {}, changes = {}
   // O plano gratuito da brapi permite só 1 ativo por requisição, então
   // buscamos um de cada vez (com no máximo 6 em paralelo para não estourar).
   await comLimite(tickers, 6, async (t) => {
@@ -66,13 +67,14 @@ async function getBrapiQuotes(tickers, token) {
       const data = await r.json()
       const item = data?.results?.[0]
       if (item?.symbol && isFinite(item.regularMarketPrice)) {
-        out[item.symbol] = item.regularMarketPrice
+        prices[item.symbol] = item.regularMarketPrice
+        if (isFinite(item.regularMarketChangePercent)) changes[item.symbol] = item.regularMarketChangePercent / 100
       }
     } catch (e) {
       console.warn('Falha brapi', t, e)
     }
   })
-  return out
+  return { prices, changes }
 }
 
 // Executa uma tarefa para cada item, com no máximo `limite` rodando ao mesmo tempo.
@@ -87,53 +89,61 @@ async function comLimite(itens, limite, tarefa) {
   await Promise.all(trabalhadores)
 }
 
-// Preços de cripto via CoinGecko, já em BRL.
+// Preços de cripto via CoinGecko, já em BRL (com variação 24h).
 async function getCryptoQuotes(tickers) {
-  if (!tickers.length) return {}
+  if (!tickers.length) return { prices: {}, changes: {} }
   const ids = tickers.map((t) => CRYPTO_IDS[t.toUpperCase()] || t.toLowerCase())
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=brl`
-  const out = {}
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=brl&include_24hr_change=true`
+  const prices = {}, changes = {}
   try {
     const r = await fetch(url)
     const data = await r.json()
     tickers.forEach((t, idx) => {
       const v = data?.[ids[idx]]?.brl
-      if (isFinite(v)) out[t.toUpperCase()] = v
+      if (isFinite(v)) prices[t.toUpperCase()] = v
+      const ch = data?.[ids[idx]]?.brl_24h_change
+      if (isFinite(ch)) changes[t.toUpperCase()] = ch / 100
     })
   } catch (e) {
     console.warn('Falha CoinGecko:', e)
   }
-  return out
+  return { prices, changes }
 }
 
 // Preços de ações dos EUA via Finnhub (1 chamada por ticker). Opcional.
 async function getUsQuotesFinnhub(tickers, token) {
-  const out = {}
+  const prices = {}, changes = {}
   await Promise.all(
     tickers.map(async (t) => {
       try {
         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${t}&token=${token}`)
         const data = await r.json()
-        if (isFinite(data?.c) && data.c > 0) out[t] = data.c
+        if (isFinite(data?.c) && data.c > 0) prices[t] = data.c
+        if (isFinite(data?.dp)) changes[t] = data.dp / 100
       } catch (e) {
         console.warn('Falha Finnhub', t, e)
       }
     })
   )
-  return out
+  return { prices, changes }
 }
 
 // Preços de ações dos EUA via Yahoo Finance, SEM cadastro.
 // O Yahoo não libera CORS, então passamos por um proxy aberto (corsproxy.io).
 async function getUsQuotesYahoo(tickers) {
-  const out = {}
+  const prices = {}, changes = {}
   const buscarUm = async (t) => {
     try {
       const alvo = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=1d`
       const r = await proxyFetch(alvo)
       const data = await r.json()
-      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice
-      if (isFinite(price) && price > 0) out[t] = price
+      const meta = data?.chart?.result?.[0]?.meta
+      const price = meta?.regularMarketPrice
+      if (isFinite(price) && price > 0) {
+        prices[t] = price
+        const prev = meta?.chartPreviousClose || meta?.previousClose
+        if (isFinite(prev) && prev > 0) changes[t] = (price - prev) / prev
+      }
     } catch (e) {
       /* tenta de novo na segunda passada */
     }
@@ -141,17 +151,17 @@ async function getUsQuotesYahoo(tickers) {
   // Concorrência baixa (2): o proxy gratuito recusa muitas chamadas simultâneas.
   await comLimite(tickers, 2, buscarUm)
   // Segunda tentativa, mais devagar, só pros que faltaram.
-  const faltando = tickers.filter((t) => !(t in out))
+  const faltando = tickers.filter((t) => !(t in prices))
   if (faltando.length) {
     await new Promise((r) => setTimeout(r, 1500))
     await comLimite(faltando, 1, buscarUm)
   }
-  return out
+  return { prices, changes }
 }
 
 // Escolhe a fonte dos EUA: Finnhub se houver chave, senão Yahoo (grátis).
 async function getUsQuotes(tickers, finnhubToken) {
-  if (!tickers.length) return {}
+  if (!tickers.length) return { prices: {}, changes: {} }
   if (finnhubToken) return getUsQuotesFinnhub(tickers, finnhubToken)
   return getUsQuotesYahoo(tickers)
 }
@@ -173,23 +183,24 @@ export async function fetchAllPrices(assets, settings = {}, extraUsTickers = [])
 
   const brapiToken = settings.brapiToken || DEFAULT_BRAPI_TOKEN
 
-  const [usdBrl, brPrices, cryptoPrices, usPrices] = await Promise.all([
+  const [usdBrl, br, crypto, us] = await Promise.all([
     getUsdBrl(),
     getBrapiQuotes(brTickers, brapiToken),
     getCryptoQuotes(cryptoTickers),
     getUsQuotes(usTickers, settings.finnhubToken),
   ])
 
-  if (brTickers.length && Object.keys(brPrices).length === 0) {
+  if (brTickers.length && Object.keys(br.prices).length === 0) {
     errors.push('Não consegui preços de Ações BR / FIIs agora. Tente atualizar de novo em instantes.')
   }
-  if (usTickers.length && Object.keys(usPrices).length === 0) {
+  if (usTickers.length && Object.keys(us.prices).length === 0) {
     errors.push('Não consegui preços do Exterior agora — usando o último preço salvo.')
   }
   if (!usdBrl) errors.push('Não consegui a cotação do dólar agora.')
 
-  const prices = { ...brPrices, ...cryptoPrices, ...usPrices }
-  return { prices, usdBrl, updatedAt: new Date().toISOString(), errors }
+  const prices = { ...br.prices, ...crypto.prices, ...us.prices }
+  const changes = { ...br.changes, ...crypto.changes, ...us.changes }
+  return { prices, changes, usdBrl, updatedAt: new Date().toISOString(), errors }
 }
 
 // Converte o ticker para o formato do Yahoo (Ações BR e FIIs levam ".SA").

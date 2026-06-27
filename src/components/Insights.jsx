@@ -4,9 +4,10 @@ import { CLASSES, classColor } from '../data/classes'
 import { perfilRisco } from '../utils/analysis'
 import { getBenchmarks } from '../services/priceService'
 import Treemap from './Treemap'
+import Heatmap from './Heatmap'
 
 // Aba INSIGHTS — análises automáticas + score de saúde da carteira.
-export default function Insights({ computed }) {
+export default function Insights({ computed, onOpen }) {
   const { total, variable, byClass, temCusto, rentabTotal, lucroTotal } = computed
   const [bench, setBench] = useState(null)
   useEffect(() => { getBenchmarks().then(setBench) }, [])
@@ -155,6 +156,13 @@ export default function Insights({ computed }) {
             <div className="insight-desc">{c.desc}</div>
           </div>
         ))}
+      </div>
+
+      {/* Heatmap do dia (#23) */}
+      <div className="card">
+        <h2>Mapa de calor do dia</h2>
+        <p className="sub">Como cada ativo está hoje: verde subiu, vermelho caiu. Clique para abrir.</p>
+        <Heatmap variable={variable} onOpen={onOpen} />
       </div>
 
       {/* Treemap (#22) */}
